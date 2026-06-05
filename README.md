@@ -89,7 +89,4 @@ Cluster-submission wrappers for each driver are kept locally and not tracked.
 
 Figs 1, 2 are TikZ / schematic (in `netcomm.tex`); Figs 3, 4 are produced from a smoke snapshot.
 
-## Legacy
-
-The OLD predictor + Wonham SAGIN stack is archived under [legacy/](legacy/). Do not import from it at runtime; the new package is fully self-contained.
 # NETCOMM
