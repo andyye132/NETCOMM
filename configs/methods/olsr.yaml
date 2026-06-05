@@ -1,0 +1,2 @@
+policy: olsr
+note: "Classical proactive link-state routing baseline (OLSR)."

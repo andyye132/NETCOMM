@@ -1,0 +1,2 @@
+policy: always_diversify
+note: "Forces a={diversify}: k disjoint paths with erasure coding for every packet."

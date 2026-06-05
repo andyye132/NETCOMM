@@ -1,0 +1,3 @@
+policy: per_packet_hmm
+note: "Ablation: VoD escalation disabled; controller never picks diversify."
+disable_vod: true

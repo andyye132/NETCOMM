@@ -1,0 +1,86 @@
+# Python compiled
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+
+# Python packaging / install
+*.egg-info/
+*.egg
+build/
+dist/
+.eggs/
+
+# Virtual environments
+.venv/
+.venv_*/
+venv/
+env/
+
+# Caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.jax_cache/
+.jax_cache_*/
+.cache/
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+.ipynb_checkpoints/
+
+# Results / runs / large artifacts
+results/
+results_*/
+wandb/
+mlruns/
+*.log
+*.out
+*.csv
+*.parquet
+*.h5
+*.npz
+*.pickle
+*.pkl
+
+# Media outputs
+*.gif
+*.mp4
+*.mov
+
+# TeX intermediate + compiled outputs
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.lof
+*.lot
+*.synctex.gz
+*.toc
+*.nav
+*.snm
+*.vrb
+*.pdf
+*.dvi
+*.ps
+
+# Archived legacy stack (do not push to remote)
+legacy/
+
+# Paper source + implementation spec (kept private)
+*.tex
+*_impl.md
+*impl.md
+
+# Local config / secrets
+.env
+.envrc
+*.local
+secrets.*

@@ -1,0 +1,3 @@
+# Full NETCOMM controller: per-packet HMM + VoP/VoD + LCB + diversify
+policy: per_packet_hmm
+note: "Full method; all controller knobs at defaults from base.yaml"

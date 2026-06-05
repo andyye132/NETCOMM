@@ -1,0 +1,2 @@
+policy: learning_router
+note: "Q-learning baseline approximated by Dijkstra-over-engineered-score (same dispatch as learning_router). A trained Q-learner is journal-version work."

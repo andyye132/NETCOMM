@@ -1,0 +1,2 @@
+policy: learning_router
+note: "Engineered-score Dijkstra approximating a trained learning router."

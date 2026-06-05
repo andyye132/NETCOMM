@@ -1,0 +1,3 @@
+policy: per_packet_hmm
+note: "Ablation: z_delta=0 collapses LCB to mean — predictive routes on expected survival."
+z_delta: 0.0

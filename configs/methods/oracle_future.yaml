@@ -1,0 +1,2 @@
+policy: oracle
+note: "Future-channel oracle: knows realized link states across the deadline; upper-bound reference."

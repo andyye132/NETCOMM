@@ -1,0 +1,19 @@
+# Indoor warehouse: tight, dense, very short range, strong multipath
+env: indoor
+area_xy: [0.0, 80.0, 0.0, 80.0]
+z_range: [0.0, 10.0]
+r_rng: 60.0
+alpha_pl: 4.0
+beta_pl: 1.0e-4
+cluster_kappa: 2.0
+m_0: 1.0
+lambda_density: 2.0e-3
+n_nodes: 16
+
+pkt_rate_per_class: [10.0, 30.0, 5.0]
+
+energy_proxy_weights:
+  react: 1.0
+  predict: 1.1
+  diversify: 1.7
+  drop: 0.0

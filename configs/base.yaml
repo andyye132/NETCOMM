@@ -1,0 +1,54 @@
+# Default NetCommConfig values shared across all scenarios.
+# Scenario YAMLs override env / area / density / range / path-loss.
+# Method YAMLs may override the lambda_* / k_paths / z_delta controller knobs.
+
+# --- physical / channel ---
+f_c: 5.8e9
+bandwidth: 2.0e7
+p_tx: 0.1
+n0: 1.0e-21
+gamma_th: 1.0
+r_rng: 200.0
+
+# --- AoI / packet deadline ---
+T_AoI: 0.1
+
+# --- HMM / regime ---
+pi_min: 0.3
+
+# --- path-loss + Nakagami (defaults; scenarios override) ---
+alpha_pl: 3.0
+beta_pl: 1.0e-4
+m_0: 2.0
+T_0: 0.05
+cluster_kappa: 1.0
+
+# --- world / geometry ---
+env: open
+lambda_density: 5.0e-4
+n_horizon_steps: 4
+dt: 0.05
+area_xy: [0.0, 200.0, 0.0, 200.0]
+z_range: [0.0, 50.0]
+n_nodes: 12
+
+# --- controller utility weights (new in 2026 rewrite) ---
+lambda_B: 0.01      # bandwidth cost weight
+lambda_E: 0.01      # energy cost weight
+lambda_C: 0.005     # control overhead weight
+lambda_Q: 0.005     # queueing cost weight
+
+# --- LCB one-sided 90% z-score (1.282); set to 0 to disable LCB ---
+z_delta: 1.282
+
+# --- diversify ---
+k_paths: 3          # disjoint paths
+n_fragments: 4      # erasure-coded fragments
+k_decode: 2         # fragments needed to decode
+
+# --- packet generation ---
+priority_classes: 3
+pkt_rate_per_class: [10.0, 30.0, 5.0]   # low telemetry, video, urgent control
+
+# --- compute budget ---
+compute_budget_per_step: 256

@@ -1,0 +1,2 @@
+policy: oracle_regime
+note: "Knows the true regime (stable/predictable/volatile/blocked) but no future channel samples."

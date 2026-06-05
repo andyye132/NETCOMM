@@ -1,0 +1,2 @@
+policy: always_react
+note: "Forces a={react} for every packet; equivalent to fresh-shortest path with no diversify."

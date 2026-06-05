@@ -1,0 +1,2 @@
+policy: aodv
+note: "Reactive on-demand routing baseline (AODV)."

@@ -1,0 +1,19 @@
+# Urban canyon: high blockage, dense, short range
+env: urban
+area_xy: [0.0, 200.0, 0.0, 200.0]
+z_range: [0.0, 30.0]
+r_rng: 120.0
+alpha_pl: 3.5
+beta_pl: 1.0e-4
+cluster_kappa: 1.5
+m_0: 1.5
+lambda_density: 8.0e-4
+n_nodes: 16
+
+pkt_rate_per_class: [10.0, 30.0, 5.0]
+
+energy_proxy_weights:
+  react: 1.0
+  predict: 1.15
+  diversify: 1.8
+  drop: 0.0

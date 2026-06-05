@@ -1,0 +1,2 @@
+policy: polsr
+note: "Predictive OLSR variant using link-quality predictions."

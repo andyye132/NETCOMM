@@ -1,0 +1,2 @@
+policy: glsr
+note: "Geographic load-aware (GLSR) variant of GPSR."

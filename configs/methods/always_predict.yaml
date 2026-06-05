@@ -1,0 +1,2 @@
+policy: always_predict
+note: "Forces a={predict}: predictive single-path via LCB survival each packet."

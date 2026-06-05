@@ -1,0 +1,2 @@
+policy: gnn_routing
+note: "GNN-based routing baseline."

@@ -1,0 +1,4 @@
+policy: scalar_bfs_predictive
+note: "Predictive scalar BFS over mean link survival; z_delta=0 disables LCB."
+z_delta: 0.0
+k_paths: 1

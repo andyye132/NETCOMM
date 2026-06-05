@@ -1,0 +1,26 @@
+[project]
+name = "netcomm"
+version = "0.2.0"
+description = "Regime-adaptive datagram control for deadline-aware robot networks under hidden Doppler fading"
+requires-python = ">=3.10"
+dependencies = [
+    "jax>=0.4.30",
+    "numpy>=1.26",
+    "scipy>=1.13",
+    "matplotlib>=3.8",
+    "seaborn>=0.13",
+    "pandas>=2.2",
+    "pyarrow>=15.0",
+    "pyyaml>=6.0",
+    "tqdm>=4.66",
+    "networkx>=3.2",
+    "shapely>=2.0",
+]
+
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["netcomm*", "experiments*"]
+exclude = ["legacy*"]

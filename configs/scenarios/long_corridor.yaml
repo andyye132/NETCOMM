@@ -1,0 +1,19 @@
+# Long corridor: linear topology, hop-chain limit
+env: corridor
+area_xy: [0.0, 600.0, 0.0, 40.0]
+z_range: [0.0, 5.0]
+r_rng: 150.0
+alpha_pl: 2.8
+beta_pl: 2.0e-4
+cluster_kappa: 1.2
+m_0: 1.5
+lambda_density: 8.0e-4
+n_nodes: 20
+
+pkt_rate_per_class: [10.0, 30.0, 5.0]
+
+energy_proxy_weights:
+  react: 1.0
+  predict: 1.1
+  diversify: 1.6
+  drop: 0.0
