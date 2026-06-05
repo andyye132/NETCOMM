@@ -2,8 +2,6 @@
 
 Per-packet belief-state stochastic controller for deadline-aware robot networks under hidden Doppler fading. For each packet the controller picks one of `{react, predict, diversify, drop}` by maximizing deadline utility under a 4-state per-link HMM belief over `{stable, predictable, volatile, blocked}`.
 
-The paper is at [netcomm.tex](netcomm.tex). The implementation spec is at [netcomm_impl.md](netcomm_impl.md).
-
 ## Layout
 
 ```
