@@ -28,10 +28,6 @@ experiments/          12 sweep drivers + smoke + sbatch wrappers + make_figures 
 configs/              base.yaml + 5 scenarios + ~20 method YAMLs
 results/              parquets + figures + animations (generated, ignored by git)
 ns3_validation/       NS-3 cross-validation scaffolding for the new controller
-
-legacy/               archived OLD stack (BFS predictor + Wonham SAGIN tier; pre-rewrite).
-                      Still runnable from inside legacy/; not on the critical path.
-                      See legacy/README.md.
 ```
 
 ## Install
