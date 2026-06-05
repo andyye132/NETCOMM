@@ -79,6 +79,10 @@ legacy/
 *_impl.md
 *impl.md
 
+# Cluster / SLURM wrappers (contain machine-local paths)
+*.sh
+*.sbatch
+
 # Local config / secrets
 .env
 .envrc

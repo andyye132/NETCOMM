@@ -37,20 +37,17 @@ legacy/               archived OLD stack (BFS predictor + Wonham SAGIN tier; pre
 ## Install
 
 ```bash
-source /users/aiyer40/TRIAGE/.venv/bin/activate    # shared venv on this machine
-pip install -e .                                    # installs netcomm
+python -m venv .venv
+source .venv/bin/activate
+pip install -e .
 ```
 
-JAX (CPU or CUDA) is required. On OSCAR the venv at the path above already has JAX 0.6.2.
+JAX (CPU or CUDA) is required.
 
 ## Smoke
 
-Login-node Python is forbidden. Use an interactive GPU node:
-
 ```bash
-srun --pty -p gpu --gres=gpu:1 --mem=16G --time=00:15:00 \
-  bash -c "source /users/aiyer40/TRIAGE/.venv/bin/activate && \
-           cd /users/aiyer40/NETCOMM && python -m experiments.smoke"
+python -m experiments.smoke
 ```
 
 The smoke runs 1 scenario × 3 seeds × {adaptive, GPSR, always-predict} for 50 steps and asserts: no NaN/Inf in `regime_belief`; all four action values appear; mean delivery in `(0, 1)`; per-packet runtime under 50 ms at N=16.
@@ -58,21 +55,24 @@ The smoke runs 1 scenario × 3 seeds × {adaptive, GPSR, always-predict} for 50 
 ## Full sweep
 
 ```bash
-for s in baselines_ci regime_sweep ablations vop_validation vod_validation \
-         mode_occupancy calibration scalability hmm_inference robustness \
-         overhead udp_stress; do
-  sbatch experiments/sbatch_${s}.sh
-done
+python -m experiments.run_baselines_ci
+python -m experiments.run_regime_sweep
+python -m experiments.run_ablations
+python -m experiments.run_vop_validation
+python -m experiments.run_vod_validation
+python -m experiments.run_mode_occupancy
+python -m experiments.run_calibration
+python -m experiments.run_scalability
+python -m experiments.run_hmm_inference
+python -m experiments.run_robustness
+python -m experiments.run_overhead
+python -m experiments.run_udp_stress
 
-# After all parquets exist:
-srun --pty -p gpu --gres=gpu:1 --mem=16G --time=00:30:00 \
-  bash -c "source /users/aiyer40/TRIAGE/.venv/bin/activate && cd /users/aiyer40/NETCOMM && \
-           python -m experiments.make_figures && python -m experiments.make_tables"
-
-pdflatex netcomm.tex
+python -m experiments.make_figures
+python -m experiments.make_tables
 ```
 
-OSCAR QOS caps concurrent GPU jobs at 2. Total full-scope sweep ~360 GPU-hours, ~4–6 weeks wall-clock.
+Cluster-submission wrappers for each driver are kept locally and not tracked.
 
 ## Tests + figures map
 
