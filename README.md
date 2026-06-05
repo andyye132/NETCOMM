@@ -44,8 +44,6 @@ JAX (CPU or CUDA) is required.
 python -m experiments.smoke
 ```
 
-The smoke runs 1 scenario × 3 seeds × {adaptive, GPSR, always-predict} for 50 steps and asserts: no NaN/Inf in `regime_belief`; all four action values appear; mean delivery in `(0, 1)`; per-packet runtime under 50 ms at N=16.
-
 ## Full sweep
 
 ```bash
@@ -65,26 +63,5 @@ python -m experiments.run_udp_stress
 python -m experiments.make_figures
 python -m experiments.make_tables
 ```
-
-Cluster-submission wrappers for each driver are kept locally and not tracked.
-
-## Tests + figures map
-
-| Test (impl spec § 12) | Script | Parquet | Figure |
-|---|---|---|---|
-| 1 Regime sweep | `run_regime_sweep` | `results/regime_sweep/` | Fig 5 |
-| 2 VoP validation | `run_vop_validation` | `results/vop_validation/` | Fig 7 |
-| 3 VoD validation | `run_vod_validation` | `results/vod_validation/` | Fig 8 |
-| 4 Calibration | `run_calibration` | `results/calibration/` | Fig 9 |
-| 5 HMM inference | `run_hmm_inference` | `results/hmm_inference/` | (text) |
-| 6 Robustness | `run_robustness` | `results/robustness/` | (text) |
-| 7 Overhead | `run_overhead` | `results/overhead/` | (text) |
-| 8 Scalability | `run_scalability` | `results/scalability/` | Fig 12 / Tab 4 |
-| 9 UDP stress | `run_udp_stress` | `results/udp_stress/` | (text) |
-| 10 Oracle / baselines | `run_baselines_ci` | `results/baselines/` | Fig 10 / Tab 3 |
-| Ablations | `run_ablations` | `results/ablations/` | Fig 11 / Tab 5 |
-| Mode occupancy | `run_mode_occupancy` | `results/mode_occupancy/` | Fig 6 |
-
-Figs 1, 2 are TikZ / schematic (in `netcomm.tex`); Figs 3, 4 are produced from a smoke snapshot.
 
 # NETCOMM
