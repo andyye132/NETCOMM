@@ -38,19 +38,18 @@ def main():
                 t0 = time.perf_counter()
                 out = run_episode(cfg, controller, flows, N_STEPS, key)
                 wall = time.perf_counter() - t0
-                vod_log = out.get("vod_log", []) or []
-                for entry in vod_log:
+                packet_log = out.get("packet_log", []) or []
+                for entry in packet_log:
                     rows.append(dict(
                         velocity=v, density=dens, trial=trial,
-                        vod=float(entry.get("vod", entry.get("VoD", 0.0))),
+                        vod=float(entry.get("vod", 0.0)),
                         delivered=int(bool(entry.get("delivered", False))),
                         action=str(entry.get("action", "")),
-                        deliv_best_single=float(entry.get("deliv_best_single", 0.0)),
-                        deliv_diversify=float(entry.get("deliv_diversify", 0.0)),
+                        s_pred=float(entry.get("s_pred", 0.0)),
                         wall=float(wall),
                     ))
             write_parquet(rows, TABLE)
-            print(f"[v={v}|dens={dens:.2e}] logged {len(vod_log)} packets/trial")
+            print(f"[v={v}|dens={dens:.2e}] logged {len(packet_log)} packets/trial")
     write_parquet(rows, TABLE)
     print("DONE vod_validation")
 

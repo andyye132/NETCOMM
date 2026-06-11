@@ -1,3 +1,2 @@
 policy: per_packet_hmm
-note: "Ablation: k_paths=1 forces single-path routing even when VoD triggers."
-k_paths: 1
+disable_diversify: true

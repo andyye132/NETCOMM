@@ -38,21 +38,18 @@ def main():
                 t0 = time.perf_counter()
                 out = run_episode(cfg, controller, flows, N_STEPS, key)
                 wall = time.perf_counter() - t0
-                # vop_log is expected to be a list of per-packet dicts:
-                #   {"vop": float, "delivered": bool, "action": str, ...}
-                vop_log = out.get("vop_log", []) or []
-                for entry in vop_log:
+                packet_log = out.get("packet_log", []) or []
+                for entry in packet_log:
                     rows.append(dict(
                         velocity=v, f_c=fc, trial=trial,
-                        vop=float(entry.get("vop", entry.get("VoP", 0.0))),
+                        vop=float(entry.get("vop", 0.0)),
                         delivered=int(bool(entry.get("delivered", False))),
                         action=str(entry.get("action", "")),
-                        deliv_react=float(entry.get("deliv_react", 0.0)),
-                        deliv_predict=float(entry.get("deliv_predict", 0.0)),
+                        s_pred=float(entry.get("s_pred", 0.0)),
                         wall=float(wall),
                     ))
             write_parquet(rows, TABLE)
-            print(f"[v={v}|fc={fc/1e9:.1f}GHz] logged {len(vop_log)} packets/trial")
+            print(f"[v={v}|fc={fc/1e9:.1f}GHz] logged {len(packet_log)} packets/trial")
     write_parquet(rows, TABLE)
     print("DONE vop_validation")
 

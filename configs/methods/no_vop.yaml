@@ -1,3 +1,2 @@
 policy: per_packet_hmm
-note: "Ablation: VoP escalation disabled; controller never picks predict over react."
 disable_vop: true

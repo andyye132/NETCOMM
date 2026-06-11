@@ -91,6 +91,16 @@ def _dijkstra_log_cost(src: int, dst: int, adj: np.ndarray,
     return list(reversed(path))
 
 
+def _belief_weights(belief_local) -> Tuple[float, float, float, float]:
+    # why: collapse (N, 4) per-edge belief to a 4-vector by averaging over
+    # outgoing edges of the source. Matches netcomm.tex eq. for b_t.
+    b = np.asarray(belief_local, dtype=np.float64)
+    if b.ndim == 2:
+        b = np.mean(b, axis=0)
+    b = b / max(float(np.sum(b)), 1e-9)
+    return float(b[0]), float(b[1]), float(b[2]), float(b[3])
+
+
 def U_react(packet: Packet, belief_local, pi_up, sinr, positions, adj,
             cfg: NetCommConfig, costs) -> Tuple[float, List[int]]:
     pi_up_np = np.asarray(pi_up)
@@ -103,7 +113,11 @@ def U_react(packet: Packet, belief_local, pi_up, sinr, positions, adj,
     n_hops = len(path) - 1
     delta_p = float(packet.deadline - packet.t_gen)
     meets = 1.0 if n_hops * cfg.dt < max(delta_p, 1e-6) else 0.0
-    return _lagrangian(surv * meets, costs, cfg), path
+    w_st, w_pr, _, _ = _belief_weights(belief_local)
+    # snapshot-SINR is trustworthy in stable regime, partially in predictable.
+    # Floor at 0.4 so a mismatched belief doesn't zero out a viable action.
+    w = 0.4 + 0.6 * min(1.0, w_st + 0.5 * w_pr)
+    return _lagrangian(surv * meets * w, costs, cfg), path
 
 
 def U_predict(packet: Packet, belief_local, lcb, adj, cfg: NetCommConfig,
@@ -117,7 +131,9 @@ def U_predict(packet: Packet, belief_local, lcb, adj, cfg: NetCommConfig,
     n_hops = len(path) - 1
     delta_p = float(packet.deadline - packet.t_gen)
     meets = 1.0 if n_hops * cfg.dt < max(delta_p, 1e-6) else 0.0
-    return _lagrangian(surv * meets, costs, cfg), path
+    w_st, w_pr, w_vo, _ = _belief_weights(belief_local)
+    w = 0.4 + 0.6 * min(1.0, w_pr + 0.5 * w_st + 0.25 * w_vo)
+    return _lagrangian(surv * meets * w, costs, cfg), path
 
 
 def U_diversify(packet: Packet, belief_local, lcb, adj, cfg: NetCommConfig,
@@ -133,18 +149,24 @@ def U_diversify(packet: Packet, belief_local, lcb, adj, cfg: NetCommConfig,
     n_paths = len(paths)
     k_dec = int(min(cfg.k_decode, n_paths))
     n_frag = int(max(cfg.n_fragments, n_paths))
-    # Build a per-path survival array of length n_frag by replicating with the
-    # available paths' survival values (paths host k of the n fragments each).
     s_rep = np.array([survs[i % n_paths] for i in range(n_frag)], dtype=np.float64)
     p_decode = k_of_n_decode_prob(s_rep, k_dec, n_frag)
     n_hops_max = max((len(p) - 1) for p in paths)
     delta_p = float(packet.deadline - packet.t_gen)
     meets = 1.0 if n_hops_max * cfg.dt < max(delta_p, 1e-6) else 0.0
-    return _lagrangian(p_decode * meets, costs, cfg), paths
+    _, w_pr, w_vo, _ = _belief_weights(belief_local)
+    w = 0.4 + 0.6 * min(1.0, w_vo + 0.5 * w_pr)
+    return _lagrangian(p_decode * meets * w, costs, cfg), paths
 
 
-def U_drop(packet: Packet) -> float:
-    return 0.0
+def U_drop(packet: Packet, belief_local=None) -> float:
+    # why: drop wins only when forwarding utilities all drop below ~0.05.
+    # A flat w_block coefficient (1.0) made oracle_regime drop everything in
+    # NLoS scenarios; a small constant keeps drop in play without dominating.
+    if belief_local is None:
+        return 0.0
+    _, _, _, w_bl = _belief_weights(belief_local)
+    return 0.05 * float(w_bl)
 
 
 def value_of_prediction(U_p: float, U_r: float) -> float:

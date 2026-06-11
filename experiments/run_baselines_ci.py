@@ -1,6 +1,8 @@
 import os
 os.environ.setdefault("JAX_PLATFORMS", "cuda")
+os.environ.setdefault("XLA_PYTHON_CLIENT_MEM_FRACTION", "0.5")
 
+import gc
 import sys
 import time
 from pathlib import Path
@@ -16,14 +18,24 @@ from experiments._runner import (
 )
 
 
-METHODS = (
+def _drain():
+    gc.collect()
+    try:
+        jax.clear_caches()
+    except Exception:
+        pass
+
+
+_ALL_METHODS = (
     "gpsr", "glsr", "aodv", "dsr", "olsr", "polsr", "tgpsr",
     "scalar_bfs_predictive", "p3", "car", "learning_router", "gnn_routing",
     "adaptive", "oracle_future",
 )
+_filter = os.environ.get("METHOD_FILTER", "").strip()
+METHODS = tuple(m for m in _ALL_METHODS if m == _filter) if _filter else _ALL_METHODS
 N_TRIALS = 50
 N_STEPS = 40
-TABLE = "baselines"
+TABLE = f"baselines/{_filter}" if _filter else "baselines"
 
 
 def main():
@@ -49,7 +61,8 @@ def main():
                     wall=float(wall),
                 ))
             write_parquet(rows, TABLE)
-            print(f"[{scn}|{mth}] {N_TRIALS} trials done")
+            print(f"[{scn}|{mth}] {N_TRIALS} trials done", flush=True)
+            _drain()
     write_parquet(rows, TABLE)
     print("DONE baselines_ci")
 

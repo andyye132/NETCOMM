@@ -25,6 +25,10 @@ from netcomm.regime.transitions import (
 from netcomm.packets.queue import PriorityQueue
 from netcomm.packets.generator import PoissonGenerator
 from netcomm.controller.decide import pick_action
+from netcomm.controller.utility import (
+    U_react, U_predict, U_diversify, _path_survival,
+    value_of_prediction, value_of_diversification,
+)
 from netcomm.aoi.tracker import AoITracker
 from netcomm.metrics.delivery import delivery_probability
 from netcomm.metrics.aoi_metrics import mean_aoi, percentile_latency
@@ -32,7 +36,7 @@ from netcomm.metrics.runtime import RuntimeRecorder
 
 
 class NetCommWorld:
-    def __init__(self, cfg: NetCommConfig, key):
+    def __init__(self, cfg: NetCommConfig, key, v_max: float = 10.0):
         self.cfg = cfg
         env = get_env_params(cfg.env)
         self.env_a = env["env_a"]
@@ -47,7 +51,6 @@ class NetCommWorld:
         xs, ys, zs, valid = add_ground_nodes(xs, ys, zs, valid)
         cls = assign_classes(valid)
         sk_vx, sk_vy = jax.random.split(sk_v)
-        v_max = 10.0
         vx = jnp.where(cls == 0, 0.0,
                        jax.random.uniform(sk_vx, (MAX_N,), minval=-v_max, maxval=v_max))
         vy = jnp.where(cls == 0, 0.0,
@@ -74,6 +77,109 @@ class NetCommWorld:
         self.state = self.state._replace(
             pos=jnp.stack([nx, ny, new_pos[:, 2]], axis=-1),
         )
+
+
+def _synth_info(action: str, chosen_path, diversify_paths,
+                u: float, s_pred: float) -> ActionInfo:
+    return ActionInfo(
+        action=action,
+        chosen_path=chosen_path,
+        diversify_paths=diversify_paths,
+        U_react=float(u) if action == "react" else 0.0,
+        U_predict=float(u) if action == "predict" else 0.0,
+        U_diversify=float(u) if action == "diversify" else 0.0,
+        U_drop=0.0,
+        VoP=0.0,
+        VoD=0.0,
+        S_pred=float(s_pred),
+    )
+
+
+def _path_survival_np(path, mat) -> float:
+    if not path or len(path) < 2:
+        return 0.0
+    p = 1.0
+    arr = np.asarray(mat)
+    for a, b in zip(path[:-1], path[1:]):
+        p *= float(arr[a, b])
+    return p
+
+
+def _route_one_packet(controller, pkt, belief_local, forecast, sinr, pi_up,
+                       adj, lcb, node_state, cfg, step_cache, positions):
+    # Lazy import to avoid circular policies <-> runner.
+    from netcomm.routing.policies import (
+        PerPacketHMMController, AlwaysReact, AlwaysPredict, AlwaysDiversify,
+        _PerPacketBase,
+    )
+
+    # Path 1: the adaptive controller (and *only* the base PerPacketHMMController class,
+    # not its always-* subclasses) uses the full 4-utility argmax. Ablation flags
+    # are forwarded straight through.
+    if type(controller) is PerPacketHMMController:
+        b_loc = (controller._collapse_to_two_state(belief_local)
+                 if controller.two_state_hmm else belief_local)
+        return pick_action(pkt, b_loc, forecast, sinr, pi_up,
+                           adj, lcb.lcb, cfg, step_cache=step_cache,
+                           positions=positions, **controller.flags)
+
+    # Path 2: always-* ablations force a single action.
+    zero_costs = (0.0, 0.0, 0.0, 0.0)
+    if isinstance(controller, AlwaysReact):
+        u, path = U_react(pkt, belief_local, pi_up, sinr, positions, adj, cfg, zero_costs)
+        if not path or len(path) < 2:
+            return _synth_info("drop", None, None, 0.0, 0.0)
+        return _synth_info("react", path, None, u, _path_survival_np(path, pi_up))
+    if isinstance(controller, AlwaysPredict):
+        u, path = U_predict(pkt, belief_local, lcb.lcb, adj, cfg, zero_costs)
+        if not path or len(path) < 2:
+            return _synth_info("drop", None, None, 0.0, 0.0)
+        return _synth_info("predict", path, None, u, _path_survival_np(path, lcb.lcb))
+    if isinstance(controller, AlwaysDiversify):
+        u, paths = U_diversify(pkt, belief_local, lcb.lcb, adj, cfg,
+                                zero_costs, cfg.k_paths)
+        if not paths:
+            return _synth_info("drop", None, None, 0.0, 0.0)
+        best = max((_path_survival_np(p, lcb.lcb) for p in paths), default=0.0)
+        return _synth_info("diversify", None, paths, u, best)
+
+    # Path 3: every other policy (GPSR, AODV, OracleRouting, OracleRegimeController,
+    # P3, CAR, LearningRouter, GNN, ScalarBFSPredictive, etc.) implements
+    # .route(flows, pi_up, sinr, positions, adj, node_state, regime_belief, lcb, forecast).
+    try:
+        routes = controller.route([(int(pkt.src), int(pkt.dst))],
+                                   pi_up, sinr, positions, adj,
+                                   node_state, regime_belief=None,
+                                   lcb=lcb, forecast=forecast)
+    except TypeError:
+        # Tolerate the OLD signature in case a stray legacy policy survives.
+        routes = controller.route([(int(pkt.src), int(pkt.dst))],
+                                   pi_up, sinr, positions, adj, node_state)
+    if not routes:
+        return _synth_info("drop", None, None, 0.0, 0.0)
+    r = routes[0]
+    # Diversify branch (list of lists).
+    if r and isinstance(r, list) and r and isinstance(r[0], list):
+        if not r:
+            return _synth_info("drop", None, None, 0.0, 0.0)
+        best = max((_path_survival_np(p, pi_up) for p in r), default=0.0)
+        return _synth_info("diversify", None, r, best, best)
+    # Single path. Predict-flavored policies (ScalarBFSPredictive, GNNRouting,
+    # OracleRouting, PredictivePolicy, P3, CAR, LearningRouter) all route over
+    # forecast/pi_up; label them "predict". Reactive baselines (GPSR/GLSR/AODV/DSR)
+    # route off instantaneous SINR; label them "react".
+    path = r if isinstance(r, list) else []
+    if not path or len(path) < 2 or path[-1] != int(pkt.dst):
+        return _synth_info("drop", None, None, 0.0, 0.0)
+    s_pred = _path_survival_np(path, pi_up)
+    label = "react"
+    name = type(controller).__name__
+    if name in {"PredictivePolicy", "ScalarBFSPredictive", "P3Policy",
+                "CARPolicy", "LearningRouterPolicy", "GNNRoutingPolicy",
+                "OracleRouting", "OracleRegimeController",
+                "OLSRPolicy", "POLSRPolicy", "TGPSRPolicy"}:
+        label = "predict"
+    return _synth_info(label, path, None, s_pred, s_pred)
 
 
 def sample_per_packet_delivery(forwarded, pi_up, lcb, key) -> List[dict]:
@@ -164,9 +270,10 @@ def update_belief_from_outcomes(belief: RegimeBelief,
 
 
 def run_episode(cfg: NetCommConfig, controller, flows: List[Tuple[int, int]],
-                n_steps: int, key, record_snapshots: bool = False) -> Dict:
+                n_steps: int, key, record_snapshots: bool = False,
+                v_max: float = 10.0) -> Dict:
     key, sk = jax.random.split(key)
-    world = NetCommWorld(cfg, sk)
+    world = NetCommWorld(cfg, sk, v_max=v_max)
     N = int(world.state.pos.shape[0])
     belief = init_belief(N)
     queue = PriorityQueue()
@@ -180,6 +287,7 @@ def run_episode(cfg: NetCommConfig, controller, flows: List[Tuple[int, int]],
     vop_log: List[float] = []
     vod_log: List[float] = []
     info_log: List[ActionInfo] = []
+    packet_log: List[Dict] = []
     snapshots = [] if record_snapshots else None
 
     n_dropped_stale = 0
@@ -219,34 +327,50 @@ def run_episode(cfg: NetCommConfig, controller, flows: List[Tuple[int, int]],
 
         step_cache: Dict = {}
         forwarded: List[Tuple] = []
+        forwarded_entries: List[Dict] = []
         for pkt in queue.drain_for_step():
             if pkt.deadline <= t:
                 n_dropped_stale += 1
                 continue
             belief_local = belief.b[int(pkt.src)]  # (N, 4) outgoing rows
-            info = pick_action(pkt, belief_local, forecast, sinr, pi_up,
-                               np.asarray(adj), lcb.lcb, cfg,
-                               step_cache=step_cache,
-                               positions=np.asarray(world.state.pos),
-                               log_buf=None)
+            info = _route_one_packet(controller, pkt, belief_local, forecast,
+                                      sinr, pi_up, np.asarray(adj), lcb,
+                                      world.state, cfg, step_cache,
+                                      positions=np.asarray(world.state.pos))
             action_log.append(info.action)
-            vop_log.append(info.VoP)
-            vod_log.append(info.VoD)
+            vop_log.append(float(info.VoP))
+            vod_log.append(float(info.VoD))
             info_log.append(info)
+            # Per-packet regime argmax over the (N, 4) outgoing belief slice
+            # at the source node. Order: (stable, predictable, volatile, blocked).
+            try:
+                bl = np.asarray(belief_local)
+                bm = np.mean(bl, axis=0) if bl.ndim >= 2 else bl
+                regime_argmax = 0 if float(bm.sum()) <= 0.0 else int(np.argmax(bm))
+            except Exception:
+                regime_argmax = 0
+            entry = {"action": info.action, "vop": float(info.VoP),
+                     "vod": float(info.VoD), "s_pred": float(info.S_pred),
+                     "delivered": False,
+                     "step": int(t_step),
+                     "regime_argmax": int(regime_argmax)}
+            packet_log.append(entry)
             if info.action == "drop":
                 continue
             forwarded.append((pkt, info))
+            forwarded_entries.append(entry)
         rec.lap("decide")
 
         key, sk_step = jax.random.split(key)
         outcomes = sample_per_packet_delivery(forwarded, pi_up, lcb, sk_step)
-        for o in outcomes:
+        for o, entry in zip(outcomes, forwarded_entries):
             all_deliveries.append(o["delivered"])
             lat_ms = o["n_hops"] * cfg.dt * 1e3
             if not o["delivered"]:
                 lat_ms = cfg.T_AoI * 1e3
             all_latencies.append(lat_ms)
             aoi.update(lat_ms)
+            entry["delivered"] = bool(o["delivered"])
 
         belief = update_belief_from_outcomes(belief, outcomes, cfg)
         rec.lap("deliver")
@@ -290,8 +414,10 @@ def run_episode(cfg: NetCommConfig, controller, flows: List[Tuple[int, int]],
         "mean_aoi": mean_aoi(all_latencies),
         "p99_latency": percentile_latency(all_latencies, 0.99),
         "mode_occupancy": mode_occupancy,
+        "action_log": action_log,
         "vop_log": vop_log,
         "vod_log": vod_log,
+        "packet_log": packet_log,
         "n_packets": int(n_packets_total),
         "n_dropped_stale": int(n_dropped_stale),
         "runtime_per_step": rec.summary(),

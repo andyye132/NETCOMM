@@ -161,6 +161,36 @@ class _PerPacketBase:
 
 
 class PerPacketHMMController(_PerPacketBase):
+    def __init__(self, cfg: NetCommConfig, *,
+                 disable_hmm: bool = False,
+                 disable_vop: bool = False,
+                 disable_vod: bool = False,
+                 disable_lcb: bool = False,
+                 disable_diversify: bool = False,
+                 two_state_hmm: bool = False,
+                 ot_diversify: bool = False):
+        super().__init__(cfg)
+        self.flags = dict(
+            disable_hmm=disable_hmm,
+            disable_vop=disable_vop,
+            disable_vod=disable_vod,
+            disable_lcb=disable_lcb,
+            disable_diversify=disable_diversify,
+        )
+        self.two_state_hmm = two_state_hmm
+        self.ot_diversify = ot_diversify
+
+    def _collapse_to_two_state(self, belief_local):
+        # why: ablation - merge stable+predictable into "good" and volatile+blocked
+        # into "bad", re-expand back to a 4-vector so downstream code is unchanged.
+        b = np.asarray(belief_local, dtype=np.float64)
+        if b.ndim == 1:
+            good = b[0] + b[1]; bad = b[2] + b[3]
+            return np.array([good / 2, good / 2, bad / 2, bad / 2])
+        good = b[..., 0] + b[..., 1]
+        bad = b[..., 2] + b[..., 3]
+        return np.stack([good / 2, good / 2, bad / 2, bad / 2], axis=-1)
+
     def route(self, flows, pi_up, sinr, positions, adj, node_state,
               regime_belief: RegimeBelief, lcb: Optional[LCBSurvival] = None,
               forecast: Optional[ChannelForecast] = None):
@@ -170,10 +200,13 @@ class PerPacketHMMController(_PerPacketBase):
         lcb_v = lcb.lcb if lcb is not None else pi_up
         for pkt in pkts:
             belief_local = regime_belief.b[int(pkt.src)]
+            if self.two_state_hmm:
+                belief_local = self._collapse_to_two_state(belief_local)
             info = pick_action(pkt, belief_local, forecast, sinr, pi_up,
                                np.asarray(adj), lcb_v, self.cfg,
                                step_cache=cache,
-                               positions=np.asarray(positions))
+                               positions=np.asarray(positions),
+                               **self.flags)
             out.append(self._info_to_route(info))
         return out
 

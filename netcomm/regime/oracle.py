@@ -10,9 +10,11 @@ def true_regime(world_state, channel_forecast, T_AoI: float) -> jnp.ndarray:
     coh = jnp.mean(channel_forecast.coh_time, axis=-1)  # (N, N)
     plos = jnp.mean(channel_forecast.p_los, axis=-1)  # (N, N)
 
-    is_blocked = plos < 0.3
+    # why: low plos alone is just attenuation. Blocked requires BOTH heavy
+    # NLoS AND fast decorrelation.
+    is_blocked = (plos < 0.15) & (coh < 0.5 * T_AoI)
     is_volatile = (~is_blocked) & (coh < 0.5 * T_AoI)
-    is_stable = (~is_blocked) & (coh > 2.0 * T_AoI) & (plos > 0.9)
+    is_stable = (~is_blocked) & (coh > 2.0 * T_AoI) & (plos > 0.7)
     is_pred = (~is_blocked) & (~is_volatile) & (~is_stable)
 
     label = (jnp.where(is_stable, 0, 0)

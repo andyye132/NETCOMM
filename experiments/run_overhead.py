@@ -37,8 +37,8 @@ def main():
                 wall = time.perf_counter() - t0
                 n_pkt = max(int(out.get("n_packets", 1)), 1)
                 n_delivered = max(int(out.get("delivery_probability", 0.0) * n_pkt), 1)
-                rt_step = out.get("runtime_per_step", None)
-                mean_rt = float(rt_step[-1]) if rt_step is not None and len(rt_step) else float(wall / N_STEPS)
+                rt_step = out.get("runtime_per_step", None) or {}
+                mean_rt = float(sum(rt_step.values())) if rt_step else float(wall / N_STEPS)
                 rows.append(dict(
                     scenario=scn, method=mth, trial=trial,
                     delivery=float(out["delivery_probability"]),

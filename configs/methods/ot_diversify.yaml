@@ -1,2 +1,2 @@
 policy: per_packet_hmm
-disable_lcb: true
+ot_diversify: true

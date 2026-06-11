@@ -83,13 +83,15 @@ def build_cfg(scn_dict: Dict[str, Any], overrides: Optional[Dict[str, Any]] = No
 
 def build_controller(method_dict: Dict[str, Any], cfg: NetCommConfig) -> ControllerProtocol:
     name = method_dict.get("policy", "per_packet_hmm")
-    flags = {k: v for k, v in method_dict.items() if k not in ("policy", "note")}
 
-    # lazy import — keeps this module compilable before Agent 1 lands
     from netcomm.routing import policies as P
 
     if name == "per_packet_hmm":
-        return P.PerPacketHMMController(cfg, **flags)
+        flag_keys = ("disable_hmm", "disable_vop", "disable_vod",
+                     "disable_lcb", "disable_diversify",
+                     "two_state_hmm", "ot_diversify")
+        kwargs = {k: bool(method_dict.get(k, False)) for k in flag_keys}
+        return P.PerPacketHMMController(cfg, **kwargs)
     if name == "always_react":
         return P.AlwaysReact(cfg)
     if name == "always_predict":

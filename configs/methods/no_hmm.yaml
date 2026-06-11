@@ -1,3 +1,2 @@
 policy: per_packet_hmm
-note: "Ablation: HMM belief replaced by raw single-step pi_up observation."
 disable_hmm: true

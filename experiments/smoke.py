@@ -59,10 +59,8 @@ def main():
                 rb = s.get("regime_belief", None)
                 if rb is not None and not _is_finite(rb):
                     all_beliefs_finite = False
-            for entry in out.get("vop_log", []) or []:
-                a = entry.get("action", None)
-                if a is not None:
-                    actions_seen.add(str(a))
+            for a in out.get("action_log", []) or []:
+                actions_seen.add(str(a))
 
     # 1. NaN/Inf in regime_belief
     ok_finite = all_beliefs_finite

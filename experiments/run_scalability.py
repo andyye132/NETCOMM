@@ -39,8 +39,8 @@ def main():
             t0 = time.perf_counter()
             out = run_episode(cfg, controller, flows, N_STEPS, key)
             wall = time.perf_counter() - t0
-            rt_step = out.get("runtime_per_step", None)
-            mean_rt = (float(sum(rt_step) / max(len(rt_step), 1)) if rt_step is not None else float(wall / N_STEPS))
+            rt_step = out.get("runtime_per_step", None) or {}
+            mean_rt = float(sum(rt_step.values())) if rt_step else float(wall / N_STEPS)
             rows.append(dict(
                 n_nodes=N, trial=trial,
                 delivery=float(out["delivery_probability"]),

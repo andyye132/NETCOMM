@@ -36,11 +36,11 @@ def main():
                 t0 = time.perf_counter()
                 out = run_episode(cfg, controller, flows, N_STEPS, key)
                 wall = time.perf_counter() - t0
-                vop_log = out.get("vop_log", []) or []  # includes S_pred per packet
-                for entry in vop_log:
+                packet_log = out.get("packet_log", []) or []
+                for entry in packet_log:
                     rows.append(dict(
                         scenario=scn, velocity=v, trial=trial,
-                        s_pred=float(entry.get("s_pred", entry.get("S_pred", 0.0))),
+                        s_pred=float(entry.get("s_pred", 0.0)),
                         delivered=int(bool(entry.get("delivered", False))),
                         action=str(entry.get("action", "")),
                         wall=float(wall),

@@ -1,0 +1,21 @@
+# Idle team: near-stationary nodes in open environment, short range.
+# why: surfaces the stable regime in the action-by-regime conditional matrix
+# (other scenarios all hover in volatile/blocked due to default v_max=10 m/s).
+env: open
+area_xy: [0.0, 60.0, 0.0, 60.0]
+z_range: [0.0, 10.0]
+r_rng: 80.0
+alpha_pl: 2.0
+beta_pl: 1.0e-3
+cluster_kappa: 0.5
+m_0: 3.0
+lambda_density: 3.0e-3
+n_nodes: 12
+
+pkt_rate_per_class: [10.0, 30.0, 5.0]
+
+energy_proxy_weights:
+  react: 1.0
+  predict: 1.1
+  diversify: 1.6
+  drop: 0.0

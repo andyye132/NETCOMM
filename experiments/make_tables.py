@@ -21,10 +21,33 @@ def _read(table: str) -> pd.DataFrame:
     return pd.read_parquet(p)
 
 
+def _fmt(v):
+    if isinstance(v, float):
+        return f"{v:.3f}"
+    return str(v).replace("_", r"\_")
+
+
+def _df_to_tabular(df: pd.DataFrame) -> str:
+    cols = list(df.columns)
+    align = "l" + "c" * (len(cols) - 1) if cols else "l"
+    out = [f"\\begin{{tabular}}{{@{{}}{align}@{{}}}}", "\\toprule"]
+    out.append(" & ".join(_fmt(c) for c in cols) + " \\\\")
+    out.append("\\midrule")
+    for _, row in df.iterrows():
+        out.append(" & ".join(_fmt(v) for v in row.values) + " \\\\")
+    out.append("\\bottomrule")
+    out.append("\\end{tabular}")
+    return "\n".join(out)
+
+
 def _write_tex(df: pd.DataFrame, out: Path, caption: str, label: str):
-    txt = df.to_latex(index=False, escape=True,
-                      float_format=lambda x: f"{x:.3f}",
-                      caption=caption, label=label)
+    body = _df_to_tabular(df)
+    txt = (
+        "\\begin{table}[h]\n\\centering\n"
+        f"\\caption{{{caption}}}\n\\label{{{label}}}\n\\footnotesize\n"
+        + body + "\n"
+        + "\\end{table}\n"
+    )
     out.write_text(txt)
     print(f"[tab] -> {out}")
 
@@ -130,18 +153,12 @@ def tab4_complexity():
         delivery=("delivery", "mean"),
     )
     meas["runtime_ms"] = meas["runtime_ms"] * 1e3
-    base_out = TAB_DIR / "tab4_complexity.tex"
-    txt = []
-    txt.append(base.to_latex(index=False, escape=True,
-                              caption="Asymptotic complexity per controller component.",
-                              label="tab:complexity_asym"))
-    txt.append("\n")
-    txt.append(meas.to_latex(index=False, escape=True,
-                              float_format=lambda x: f"{x:.3f}",
-                              caption="Measured runtime per step vs.\\ N.",
-                              label="tab:complexity_meas"))
-    base_out.write_text("\n".join(txt))
-    print(f"[tab4] -> {base_out}")
+    _write_tex(base, TAB_DIR / "tab4_complexity_asym.tex",
+               caption="Asymptotic complexity per controller component.",
+               label="tab:complexity_asym")
+    _write_tex(meas, TAB_DIR / "tab4_complexity_meas.tex",
+               caption="Measured runtime per step vs.\\ N.",
+               label="tab:complexity_meas")
 
 
 # ---------------------------------------------------------------------------
