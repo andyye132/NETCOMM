@@ -1,7 +1,7 @@
 [project]
 name = "netcomm"
 version = "0.2.0"
-description = "Regime-adaptive datagram control for deadline-aware robot networks under hidden Doppler fading"
+description = "JAX multi-drone multi-object tracking sim: GM-PHD tracker + pluggable repositioners (Voronoi, greedy-MI, RSP, minimax), ground-truth scorecard, differentiable core (built on the NETCOMM routing base)"
 requires-python = ">=3.10"
 dependencies = [
     "jax>=0.4.30",
@@ -15,6 +15,13 @@ dependencies = [
     "tqdm>=4.66",
     "networkx>=3.2",
     "shapely>=2.0",
+    "motmetrics>=1.4",
+    "dearpygui>=2.3.1",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
 ]
 
 [build-system]
@@ -22,5 +29,5 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["netcomm*", "experiments*"]
+include = ["netcomm*", "experiments*", "modtrack*", "gmphd*", "coverage_control*", "evaluation*", "infomax*", "nonmyopic*", "diffsim*"]
 exclude = ["legacy*"]

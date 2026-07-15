@@ -1,67 +1,93 @@
-# NETCOMM: Regime-Adaptive Datagram Control
+# NETCOMM Drone-Tracking Sim
 
-Per-packet belief-state stochastic controller for deadline-aware robot networks under hidden Doppler fading. For each packet the controller picks one of `{react, predict, diversify, drop}` by maximizing deadline utility under a 4-state per-link HMM belief over `{stable, predictable, volatile, blocked}`.
+A **JAX-based simulator for multi-drone, multi-object tracking**. Drones carry
+downward-facing cameras; a **GM-PHD filter** estimates the (unknown number of)
+moving targets from their noisy detections, and a pluggable **repositioner**
+moves the drones to improve tracking. Because the sim owns the **true target
+states**, it benchmarks both the tracker and the repositioner against ground
+truth (PCRLB bound, GOSPA, OSPA², MOT/HOTA).
+
+Two roles toggle independently:
+
+- **Tracker** — estimates target states from drone observations. Default
+  **GM-PHD** (Vo & Ma 2006).
+- **Repositioner** — moves drones to improve tracking. The tracker's estimates
+  define an importance density **φ**, and the repositioner optimizes drone
+  placement against φ.
+
+## Repositioners
+
+| Toggle | Method | Source |
+|---|---|---|
+| `none` | Static drones (baseline) | — |
+| `isotropic_voronoi` | Centroidal Voronoi / Lloyd coverage | Cortés 2004 |
+| `greedy_mi` | Sequential-greedy mutual information | Corah & Michael 2021 |
+| `rsp` | Randomized Sequential Partitions + greedy | Corah & Michael 2021 |
+| `minimax` | Non-myopic minimax `min_u max_z tr(Σ_T)` | Zhang & Tokekar 2016 |
+
+Each method lives in its own standalone package (`coverage_control/`,
+`infomax/`, `nonmyopic/`, `gmphd/`) with paper-faithful tests, plus a thin
+adapter in `netcomm/tracking/repositioner.py`. New methods plug in via
+`make_repositioner(name, cfg, sensor_cfg)`.
 
 ## Layout
 
-```
-netcomm/              new package
-  types.py            shared NamedTuples + ControllerProtocol (sync point)
-  world/              PPP, kinematics, environment, topology, node state
-  channel/            doppler, path-loss, Nakagami-m, 3GPP LoS, SINR, forecast, linkup
-  regime/             per-link 4-state HMM (filter, observations, transitions, oracle)
-  lcb/                lower-confidence-bound link survival
-  controller/         utility estimators (react / predict / diversify / drop) + decide
-  diversify/          k-disjoint paths, k-of-n decode, greedy + Sinkhorn fragment allocator
-  packets/            Packet dataclass, priority queue, Poisson/bursty generator
-  routing/            baseline policies (GPSR, GLSR, AODV, DSR, OLSR, P-OLSR, TGPSR, P3,
-                      CAR, learning, GNN), oracle, PerPacketHMMController, always-* ablations
-  aoi/                Age-of-Information tracker
-  beacons/            adaptive beacon cadence
-  metrics/            delivery, AoI, runtime, route churn, Brier/ECE calibration, mode occupancy
-  runner.py           per-packet episode loop
-  visualizer.py       4-state belief overlay + per-packet mode coloring
+| Path | Role |
+|---|---|
+| `netcomm/tracking/` | Sim core: runner, GUI app, sensors, coverage field, repositioner/tracker adapters, test harness |
+| `gmphd/` | GM-PHD filter (tracker) |
+| `coverage_control/` | Isotropic Voronoi coverage (Cortés 2004) |
+| `infomax/` | Greedy / RSP mutual-information planner (Corah & Michael 2021) |
+| `nonmyopic/` | Non-myopic minimax target tracking (Zhang & Tokekar 2016) |
+| `evaluation/` | Ground-truth scorecard: PCRLB, GOSPA, OSPA², MOTA/MOTP/IDF1, HOTA |
+| `experiments/` | Headless CLI entry points (batch tests, evaluation, demo) |
+| `modtrack/` | Alternative tracker — reserved, not yet wired in |
 
-experiments/          12 sweep drivers + smoke + sbatch wrappers + make_figures + make_tables
-configs/              base.yaml + 5 scenarios + ~20 method YAMLs
-results/              parquets + figures + animations (generated, ignored by git)
-ns3_validation/       NS-3 cross-validation scaffolding for the new controller
-```
+### Legacy base (not part of the tracking sim)
+
+This repo was forked from the upstream Tejadi/NETCOMM **packet-routing**
+project. The inherited `netcomm/{routing,channel,regime,world,controller,
+diversify,packets,...}` packages and the `netcomm/visualizer.py`,
+`netcomm/runner.py` (plus the routing experiment drivers in `experiments/`,
+`configs/`, `ns3_validation/`) are **legacy from that upstream project and are
+NOT used by the tracking sim**. The tracking sim reuses only **`NetCommWorld`**
+(from `netcomm.runner`) for drone placement and linear kinematics; everything
+else under `netcomm/tracking/` is new.
 
 ## Install
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -e .
-```
-
-JAX (CPU or CUDA) is required.
-
-## Smoke
+Uses [`uv`](https://docs.astral.sh/uv/). JAX (CPU or CUDA) is required.
 
 ```bash
-python -m experiments.smoke
+uv sync
 ```
 
-## Full sweep
+## Run
 
 ```bash
-python -m experiments.run_baselines_ci
-python -m experiments.run_regime_sweep
-python -m experiments.run_ablations
-python -m experiments.run_vop_validation
-python -m experiments.run_vod_validation
-python -m experiments.run_mode_occupancy
-python -m experiments.run_calibration
-python -m experiments.run_scalability
-python -m experiments.run_hmm_inference
-python -m experiments.run_robustness
-python -m experiments.run_overhead
-python -m experiments.run_udp_stress
+# GUI (dearpygui): build a scenario, run/play/scrub, toggle tracker & repositioner
+python -m netcomm.tracking.app
 
-python -m experiments.make_figures
-python -m experiments.make_tables
+# Headless batch — scores methods against ground truth, writes table + CSV to results/Repositioning/
+python experiments/run_batch_tests.py \
+    --methods none isotropic_voronoi greedy_mi rsp minimax \
+    --epochs 20 --rounds 3 --batch-size 8 \
+    --drones 5 --targets 6 --motion random_walk --name sweep
 ```
 
-# NETCOMM
+Batch flags include `--motion-model {cv,ca}`, `--los-nlos`, `--steps`, `--dt`,
+`--speed`, and `--fov-deg`. Within a round every method runs the *identical*
+scenarios (matched paired seeds) for a fair comparison.
+
+## Tests
+
+The suite runs under JAX on CPU. `pytest` is declared in the `dev` dependency
+group:
+
+```bash
+JAX_PLATFORMS=cpu uv run --group dev python -m pytest -q
+```
+
+Per-package paper-faithful tests live in each package's `tests/` directory
+(`gmphd/tests`, `coverage_control/tests`, `infomax/tests`, `nonmyopic/tests`,
+`netcomm/tracking/tests`, `evaluation/tests`).
